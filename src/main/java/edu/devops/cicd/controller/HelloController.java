@@ -13,7 +13,7 @@ public class HelloController {
     @GetMapping("/hello")
     public Map<String, String> hello() {
         return Map.of(
-                "message", "Hello from CI/CD Pipeline!",
+                "message", "Hello from the updated CI/CD Pipeline!",
                 "status", "running"
         );
     }

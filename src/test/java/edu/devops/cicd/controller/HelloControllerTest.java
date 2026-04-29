@@ -19,7 +19,7 @@ class HelloControllerTest {
     void helloEndpointReturnsMessage() throws Exception {
         mockMvc.perform(get("/api/hello"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Hello from CI/CD Pipeline!"))
+                .andExpect(jsonPath("$.message").value("Hello from the updated CI/CD Pipeline!"))
                 .andExpect(jsonPath("$.status").value("running"));
     }
 
