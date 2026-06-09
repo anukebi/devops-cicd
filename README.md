@@ -153,6 +153,132 @@ mvn test
 ./mvnw spring-boot:run
 
 # Build and run with Docker
-docker build -t cicd-app .
-docker run -p 8080:8080 cicd-app
+docker compose up -d --build
 ```
+
+---
+
+# Observability
+
+The whole observability stack runs locally with Docker Compose - one command and everything comes up together.
+On startup, the `kibana-setup` container creates the **Application Logs** data view in Kibana and hits the app once to seed a few log lines. If Discover looks empty, call `curl http://localhost:8080/api/hello` and refresh.
+
+| Service       | URL                     | Login         |
+|---------------|-------------------------|---------------|
+| Application   | http://localhost:8080   | -             |
+| Prometheus    | http://localhost:9090   | -             |
+| Grafana       | http://localhost:3000   | admin / admin |
+| Kibana        | http://localhost:5601   | -             |
+| Node Exporter | http://localhost:9100   | -             |
+
+Grafana has three provisioned dashboards under the **Observability** folder:
+
+- **Application Services** - custom counters, HTTP/JVM metrics, app health
+- **System Overview** - host CPU, memory, disk
+- **Infrastructure & Resources** - service status, network and disk I/O
+
+---
+
+## Architecture Diagram
+
+![observability-graph.png](docs/obs/observability-graph.png)
+
+---
+
+## Implementation Details
+
+### Metrics
+
+The app tracks two custom counters in `AppMetrics` using Micrometer:
+
+- `app_requests_total` - goes up on `/api/hello`, `/api/health`, and `/api/error`
+- `app_errors_total` - goes up on `/api/error`
+
+There are two ways to read them:
+
+- **`GET /metrics`** - a custom controller I wrote that returns Prometheus text format (required by the assignment)
+- **`GET /actuator/prometheus`** - Spring Actuator, which Prometheus actually scrapes for Grafana dashboards (JVM, HTTP, and the same custom counters on top)
+
+You can also browse metrics as JSON at `/actuator/metrics` if you want to inspect a single counter, e.g. `/actuator/metrics/app_requests_total`.
+
+### Logging (ELK)
+
+The app logs in JSON using Log4j2. In Docker, logs also get sent to Logstash over TCP (`logstash:5000`), indexed in Elasticsearch, and viewed in Kibana.
+
+To look at logs in Kibana:
+
+1. Open http://localhost:5601 and go to **Discover**
+2. Pick the **Application Logs** data view
+3. Filter with `level: ERROR` to see only error lines
+
+### Alerting
+
+A Prometheus rule in `monitoring/prometheus/alerts.yml` fires a **CRITICAL** alert when more than 5 errors happen in one minute:
+
+```yaml
+expr: increase(app_errors_total[1m]) > 5
+```
+
+The same rule is also provisioned in Grafana's alerting tab.
+
+To trigger it on purpose:
+
+```bash
+./scripts/trigger-alert.sh
+```
+
+Or just spam the error endpoint:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:8080/api/error; done
+```
+
+Wait about a minute, then check:
+
+- Prometheus alerts: http://localhost:9090/alerts
+- Grafana alerting: http://localhost:3000/alerting/list
+
+---
+
+## Screenshots
+
+**Kibana - filtered JSON logs**
+![Kibana log analysis](docs/obs/kibana-logs.png)
+
+**Grafana dashboard - application services**
+![Grafana application](docs/obs/grafana-application.png)
+
+**Grafana dashboard - infrastructure and resources**
+![Grafana infrastructure](docs/obs/grafana-infrastructure.png)
+
+**Grafana dashboard - system overview**
+![Grafana system overview](docs/obs/grafana-system.png)
+
+**Grafana - active alert rule**
+![Grafana alerting](docs/obs/grafana-alerting.png)
+
+---
+
+## Analysis
+
+### Why is JSON-structured logging more efficient than plain text logs?
+
+With JSON, every field (`level`, `message`, `@timestamp`, etc.) has a fixed key, so Logstash and Kibana can index and filter without regex. 
+Plain text means writing a separate parser for each log format, and it breaks easily when the message itself contains spaces or special characters. 
+Counting errors by service or filtering by level is much harder and slower with unstructured text.
+
+### What is the fundamental technical difference between Prometheus (metrics) and Elasticsearch (logging)?
+
+Prometheus is a time-series database - it stores numbers scraped at regular intervals. It is built for "how many?" and "how fast?" questions, not for storing full log messages.
+
+Elasticsearch is a document store built for search. It indexes entire log records with many text fields and is good at queries like "show me all ERROR logs from the last hour that mention timeout."
+
+So Prometheus tells you the error *rate*; Elasticsearch lets you read the actual error *messages*.
+
+### How would you handle long-term log retention (e.g., 6 months) without depleting disk resources?
+
+1. **Index Lifecycle Management (ILM)** in Elasticsearch - keep recent logs on fast storage, move older ones to cheaper tiers, delete after 6 months
+2. **Snapshots to object storage** (S3) before deleting old indices, so you can still restore them if needed
+3. **Drop verbose logs sooner** - keep INFO/DEBUG for a week or two, but retain ERROR/WARN longer
+
+---
