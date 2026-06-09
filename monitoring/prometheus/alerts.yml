@@ -1,0 +1,9 @@
+groups:
+  - name: cicd-app
+    rules:
+      - alert: HighErrorRate
+        expr: increase(app_errors_total[1m]) > 5
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: error rate exceeded 5 per minute"
