@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <JsonTemplateLayout eventTemplateUri="classpath:LogstashJsonEventLayoutV1.json"/>
+        </Console>
+        <Socket name="Logstash" host="logstash" port="5000" protocol="TCP" reconnectDelayMillis="5000">
+            <JsonTemplateLayout eventTemplateUri="classpath:LogstashJsonEventLayoutV1.json"/>
+        </Socket>
+    </Appenders>
+
+    <SpringProfile name="docker">
+        <Loggers>
+            <Root level="INFO">
+                <AppenderRef ref="Console"/>
+                <AppenderRef ref="Logstash"/>
+            </Root>
+        </Loggers>
+    </SpringProfile>
+
+    <SpringProfile name="!docker">
+        <Loggers>
+            <Root level="INFO">
+                <AppenderRef ref="Console"/>
+            </Root>
+        </Loggers>
+    </SpringProfile>
+</Configuration>

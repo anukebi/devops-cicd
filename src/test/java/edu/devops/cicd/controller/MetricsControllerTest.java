@@ -7,12 +7,13 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(HelloController.class)
-class HelloControllerTest {
+@WebMvcTest(MetricsController.class)
+class MetricsControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -21,17 +22,13 @@ class HelloControllerTest {
     private AppMetrics appMetrics;
 
     @Test
-    void helloEndpointReturnsMessage() throws Exception {
-        mockMvc.perform(get("/api/hello"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Hello from the updated CI/CD Pipeline!"))
-                .andExpect(jsonPath("$.status").value("running"));
-    }
+    void metricsEndpointReturnsPrometheusFormat() throws Exception {
+        when(appMetrics.getRequestsTotal()).thenReturn(10.0);
+        when(appMetrics.getErrorsTotal()).thenReturn(2.0);
 
-    @Test
-    void healthEndpointReturnsUp() throws Exception {
-        mockMvc.perform(get("/api/health"))
+        mockMvc.perform(get("/metrics"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("app_requests_total 10.0")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("app_errors_total 2.0")));
     }
 }
