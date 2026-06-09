@@ -1,0 +1,127 @@
+{
+  "uid": "application-services",
+  "title": "Application Services",
+  "tags": ["application", "services"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Custom Application Counters",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "app_requests_total{job=\"cicd-app\"}", "legendFormat": "app_requests_total", "refId": "A" },
+        { "expr": "app_errors_total{job=\"cicd-app\"}", "legendFormat": "app_errors_total", "refId": "B" }
+      ],
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Errors per Minute",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "increase(app_errors_total{job=\"cicd-app\"}[1m])", "legendFormat": "errors/min", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 5 }] }
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "Service Health Status",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "up{job=\"cicd-app\"}", "legendFormat": "CI/CD App", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 }
+    },
+    {
+      "id": 4,
+      "title": "Application Uptime",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "process_uptime_seconds{job=\"cicd-app\"}", "legendFormat": "Uptime", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 }
+    },
+    {
+      "id": 5,
+      "title": "Process CPU Usage",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "process_cpu_usage{job=\"cicd-app\"}", "legendFormat": "CPU", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 }
+    },
+    {
+      "id": 6,
+      "title": "HTTP Request Rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "rate(http_server_requests_seconds_count{job=\"cicd-app\"}[5m])", "legendFormat": "{{method}} {{uri}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    },
+    {
+      "id": 7,
+      "title": "HTTP Response Times (Average)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "rate(http_server_requests_seconds_sum{job=\"cicd-app\"}[5m]) / rate(http_server_requests_seconds_count{job=\"cicd-app\"}[5m])",
+        "legendFormat": "{{method}} {{uri}}",
+        "refId": "A"
+      }],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+    },
+    {
+      "id": 8,
+      "title": "JVM Heap Memory Usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "jvm_memory_used_bytes{job=\"cicd-app\", area=\"heap\"} / jvm_memory_max_bytes{job=\"cicd-app\", area=\"heap\"} * 100",
+        "legendFormat": "Heap %",
+        "refId": "A"
+      }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 }
+    },
+    {
+      "id": 9,
+      "title": "JVM Threads",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{job=\"cicd-app\"}", "legendFormat": "Live Threads", "refId": "A" },
+        { "expr": "jvm_threads_daemon_threads{job=\"cicd-app\"}", "legendFormat": "Daemon Threads", "refId": "B" }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 }
+    },
+    {
+      "id": 10,
+      "title": "JVM Garbage Collection",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "rate(jvm_gc_pause_seconds_count{job=\"cicd-app\"}[5m])", "legendFormat": "GC Rate", "refId": "A" },
+        { "expr": "rate(jvm_gc_pause_seconds_sum{job=\"cicd-app\"}[5m])", "legendFormat": "GC Time", "refId": "B" }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 }
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
